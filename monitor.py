@@ -32,7 +32,7 @@ def send_telegram_message(message):
     try:
         requests.post(url, json=payload)
     except Exception as e:
-        print(f"Error sending message: {e}")
+        print(f"Error: {e}")
 
 def setup_browser():
     chrome_options = Options()
@@ -50,67 +50,59 @@ def check_vox_cinemas(driver, sent_items):
     print("Checking Vox Cinemas Almaza...")
     try:
         driver.get(VOX_URL)
-        driver.implicitly_wait(5)
+        driver.implicitly_wait(6)
         
-        movies = driver.find_elements(By.CSS_SELECTOR, "article.movie-summary")
-        print(f"Found {len(movies)} movies in Vox Cinemas.")
+        elements = driver.find_elements(By.TAG_NAME, "a")
+        count = 0
         
-        for movie in movies:
+        for el in elements:
             try:
-                title = movie.find_element(By.CSS_SELECTOR, "h3").text.strip()
-                link = movie.find_element(By.CSS_SELECTOR, "a").get_attribute("href")
+                text = el.text.strip()
+                link = el.get_attribute("href")
                 
-                if title and title not in sent_items:
-                    save_sent_item(title)
-                    sent_items.add(title)
-                    msg = (
-                        "🎬 <b>New Movie Available at Vox!</b>\n\n"
-                        f"📌 <b>Title:</b> {title}\n\n"
-                        f"🎟 <a href='{link}'>Click here to book</a>"
-                    )
-                    send_telegram_message(msg)
-                    print(f"Alert sent for movie: {title}")
+                if link and ("book" in link or "movies" in link) and len(text) > 3:
+                    if text not in sent_items:
+                        save_sent_item(text)
+                        sent_items.add(text)
+                        msg = f"🎬 <b>Vox Cinemas Update!</b>\n\n{text}\n\n🎟 <a href='{link}'>Book Here</a>"
+                        send_telegram_message(msg)
+                        count += 1
             except:
                 continue
+        print(f"Found and processed {count} new items in Vox.")
     except Exception as e:
-        print(f"Vox Cinemas Error: {e}")
+        print(f"Vox Error: {e}")
 
 def check_tazkarti(driver, sent_items):
-    print("Checking Tazkarti Matches...")
+    print("Checking Tazkarti...")
     try:
         driver.get(TAZKARTI_URL)
         driver.implicitly_wait(8)
         
-        match_cards = driver.find_elements(By.CSS_SELECTOR, ".match-card, .card")
-        print(f"Found {len(match_cards)} matches on Tazkarti.")
-        
-        for card in match_cards:
+        cards = driver.find_elements(By.TAG_NAME, "mat-card")
+        if not cards:
+            cards = driver.find_elements(By.TAG_NAME, "div")
+            
+        count = 0
+        for card in cards:
             try:
-                match_info = card.text.strip()
-                
-                if match_info and len(match_info) > 5:
-                    flat_info = match_info.replace('\n', ' - ')
-                    
+                info = card.text.strip()
+                if info and len(info) > 10 and ("vs" in info.lower() or "استاد" in info):
+                    flat_info = info.replace('\n', ' - ')
                     if flat_info not in sent_items:
                         save_sent_item(flat_info)
                         sent_items.add(flat_info)
-                        msg = (
-                            "⚽️ <b>New Match Available on Tazkarti!</b>\n\n"
-                            f"🏆 <b>Details:</b>\n{match_info}\n\n"
-                            f"🎟 <a href='{TAZKARTI_URL}'>Click here to book</a>"
-                        )
+                        msg = f"⚽️ <b>Tazkarti Match Update!</b>\n\n{flat_info}\n\n🎟 <a href='{TAZKARTI_URL}'>Book Here</a>"
                         send_telegram_message(msg)
-                        print("Alert sent for a new match.")
+                        count += 1
             except:
                 continue
+        print(f"Found and processed {count} new items in Tazkarti.")
     except Exception as e:
         print(f"Tazkarti Error: {e}")
 
 if __name__ == "__main__":
-    print("Starting Scraper Bot...")
-    
-    send_telegram_message("🤖 <b>Test Message:</b> Scraper bot has started checking on GitHub Actions...")
-    
+    print("Starting Bot...")
     sent_items = load_sent_items()
     driver = setup_browser()
     
@@ -119,4 +111,4 @@ if __name__ == "__main__":
         check_tazkarti(driver, sent_items)
     finally:
         driver.quit()
-        print("Scraping cycle completed.")
+        print("Done.")
