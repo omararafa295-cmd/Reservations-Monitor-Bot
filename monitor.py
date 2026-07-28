@@ -39,11 +39,11 @@ def setup_browser():
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage") 
+    chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
     
     driver = webdriver.Chrome(options=chrome_options)
-    driver.set_page_load_timeout(30) 
+    driver.set_page_load_timeout(30)
     return driver
 
 def check_vox_cinemas(driver, sent_items):
@@ -53,6 +53,7 @@ def check_vox_cinemas(driver, sent_items):
         driver.implicitly_wait(5)
         
         movies = driver.find_elements(By.CSS_SELECTOR, "article.movie-summary")
+        print(f"Found {len(movies)} movies in Vox Cinemas.")
         
         for movie in movies:
             try:
@@ -81,6 +82,7 @@ def check_tazkarti(driver, sent_items):
         driver.implicitly_wait(8)
         
         match_cards = driver.find_elements(By.CSS_SELECTOR, ".match-card, .card")
+        print(f"Found {len(match_cards)} matches on Tazkarti.")
         
         for card in match_cards:
             try:
@@ -106,6 +108,8 @@ def check_tazkarti(driver, sent_items):
 
 if __name__ == "__main__":
     print("Starting Scraper Bot...")
+    
+    send_telegram_message("🤖 <b>Test Message:</b> Scraper bot has started checking on GitHub Actions...")
     
     sent_items = load_sent_items()
     driver = setup_browser()
