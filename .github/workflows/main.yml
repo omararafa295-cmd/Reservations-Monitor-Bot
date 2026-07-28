@@ -20,7 +20,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run Scraper
-        run: python monitor.py
+        run: python -u monitor.py
 
       - name: Commit and push changes
         run: |
