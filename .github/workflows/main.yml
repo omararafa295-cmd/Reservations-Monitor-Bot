@@ -1,8 +1,8 @@
 name: Monitor Bot
 on:
   schedule:
-    - cron: '*/15 * * * *' # هيشتغل كل 15 دقيقة
-  workflow_dispatch: # زرار للتشغيل اليدوي لو حبيت تختبره
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -26,6 +26,7 @@ jobs:
         run: |
           git config --global user.name 'GitHub Action'
           git config --global user.email 'action@github.com'
+          git pull origin main --rebase
           git add sent.txt
           git commit -m "Update sent items" || echo "No changes to commit"
           git push
