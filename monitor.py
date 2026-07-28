@@ -1,5 +1,6 @@
 import os
 import re
+import time
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 import requests
@@ -44,8 +45,12 @@ def now_egypt():
     return datetime.now(EGYPT_TZ)
 
 
+def today_egypt():
+    return now_egypt().date()
+
+
 def date_label(d):
-    diff = (d - date.today()).days
+    diff = (d - today_egypt()).days
     if diff == 0:
         return "Today"
     if diff == 1:
@@ -54,8 +59,7 @@ def date_label(d):
 
 
 def vox_url_for_date(d):
-    today = date.today()
-    if d == today:
+    if d == today_egypt():
         return VOX_BASE_URL
     return f"{VOX_BASE_URL}&d={d.strftime('%Y%m%d')}"
 
@@ -64,12 +68,9 @@ def discover_open_dates(driver):
     """Reads the site's own date tabs and returns every date currently open
     for booking — so if Vox opens a new day (e.g. Aug 4), it's picked up
     automatically without editing the code."""
-    dates = [date.today()]
+    dates = [today_egypt()]
     try:
-        driver.get(VOX_BASE_URL)
-        WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "nav.date-filter"))
-        )
+        load_page(driver, VOX_BASE_URL, wait_selector="article.movie-compare")
         nav = driver.find_element(By.CSS_SELECTOR, "nav.date-filter")
         links = nav.find_elements(By.CSS_SELECTOR, "li a[href]")
         for link in links:
@@ -82,6 +83,26 @@ def discover_open_dates(driver):
         print(f"Could not discover date tabs, falling back to today only: {e}")
 
     return sorted(set(dates))
+
+
+def load_page(driver, url, wait_selector, timeout=25, retries=2, pause_between=3):
+    """Loads a URL and waits for wait_selector to appear, retrying with a
+    short pause if the site is slow to respond (helps avoid false timeouts
+    from loading several pages back-to-back)."""
+    last_error = None
+    for attempt in range(1, retries + 2):
+        try:
+            driver.get(url)
+            WebDriverWait(driver, timeout).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, wait_selector))
+            )
+            return True
+        except Exception as e:
+            last_error = e
+            print(f"     Attempt {attempt} failed for {url}: {e.__class__.__name__}")
+            time.sleep(pause_between)
+    print(f"     Giving up on {url} after {retries + 1} attempts. Last error: {last_error}")
+    return False
 
 
 def parse_showtime_dt(target_date, time_text):
@@ -248,7 +269,7 @@ def format_vox_message(movie, day_label, new_showtimes_by_hall):
 def check_vox_cinemas(driver, sent_items):
     print("Checking Vox Cinemas Almaza...")
     total_new = 0
-    today = date.today()
+    today = today_egypt()
     current_time = now_egypt()
 
     dates_to_check = discover_open_dates(driver)
@@ -259,13 +280,16 @@ def check_vox_cinemas(driver, sent_items):
         url = vox_url_for_date(target_date)
         print(f"  -> Checking {day_label} ({url})")
 
-        try:
-            driver.get(url)
-            WebDriverWait(driver, 15).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "article.movie-compare"))
-            )
-        except Exception:
-            print(f"     No movie data loaded for {day_label} (timeout).")
+        # discover_open_dates already left the browser on today's page —
+        # no need to reload it, that just burns an extra request.
+        already_loaded = (target_date == today and driver.current_url.rstrip('/') == url.rstrip('/'))
+        if already_loaded:
+            ok = True
+        else:
+            ok = load_page(driver, url, wait_selector="article.movie-compare")
+            time.sleep(2)  # small pause between requests so we don't look like a bot hammering the site
+
+        if not ok:
             save_debug_snapshot(driver, f"vox_{target_date.isoformat()}")
             continue
 
