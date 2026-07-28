@@ -1,32 +1,48 @@
 name: Monitor Bot
+
 on:
   schedule:
-    - cron: '*/15 * * * *'
-  workflow_dispatch:
+    - cron: '*/15 * * * *'  
+  workflow_dispatch:  
 
 jobs:
-  build:
+  run-monitor:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
+
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
 
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run Scraper
+      - name: Run monitor script
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python -u monitor.py
 
-      - name: Commit and push changes
+      - name: Upload debug snapshots (if any)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-snapshots
+          path: |
+            debug_*.png
+            debug_*.html
+          if-no-files-found: ignore
+
+      - name: Commit updated sent.txt
         run: |
           git config --global user.name 'GitHub Action'
           git config --global user.email 'action@github.com'
-          git pull origin main --rebase
           git add sent.txt
-          git commit -m "Update sent items" || echo "No changes to commit"
+          git diff --staged --quiet || git commit -m "Update sent items"
           git push
