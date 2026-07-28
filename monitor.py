@@ -69,13 +69,29 @@ def save_debug_snapshot(driver, name):
         print(f"Could not save debug snapshot for {name}: {e}")
 
 
+# Links whose visible text matches these (case-insensitive) are navigation/social
+# links, not actual showtimes — never treat them as movies.
+VOX_TEXT_BLACKLIST = {
+    "facebook", "instagram", "twitter", "x", "youtube", "tiktok",
+    "what's on", "whats on", "coming soon", "book here", "book now",
+    "home", "offers", "cinemas", "contact", "contact us", "about",
+    "vip", "menu", "showtimes", "movies", "sign in", "login", "register",
+}
+
+# Only treat a link as a real showtime/booking link if its URL looks like
+# an actual booking link (adjust this once we see the real HTML structure).
+def _looks_like_booking_link(href):
+    href_lower = href.lower()
+    return "book" in href_lower and any(
+        ch.isdigit() for ch in href_lower  # booking links usually carry an id/session number
+    )
+
+
 def check_vox_cinemas(driver, sent_items):
     print("Checking Vox Cinemas Almaza...")
     try:
         driver.get(VOX_URL)
 
-        # Wait explicitly for at least one <a> tag to actually be present,
-        # instead of a blind implicit wait.
         try:
             WebDriverWait(driver, 15).until(
                 EC.presence_of_element_located((By.TAG_NAME, "a"))
@@ -93,20 +109,38 @@ def check_vox_cinemas(driver, sent_items):
                 text = el.text.strip()
                 link = el.get_attribute("href")
 
-                if link and ("book" in link or "movies" in link) and len(text) > 3:
-                    if text not in sent_items:
-                        save_sent_item(text)
-                        sent_items.add(text)
-                        msg = f"🎬 <b>Vox Cinemas Update!</b>\n\n{text}\n\n🎟 <a href='{link}'>Book Here</a>"
-                        send_telegram_message(msg)
-                        count += 1
+                if not link or not text or len(text) <= 3:
+                    continue
+                if text.lower() in VOX_TEXT_BLACKLIST:
+                    continue
+                if not _looks_like_booking_link(link):
+                    continue
+
+                # Try to get more context (movie name + date) from the surrounding card,
+                # since the <a> text alone is usually just the showtime (e.g. "4:45pm").
+                context_text = text
+                try:
+                    card = el.find_element(By.XPATH, "./ancestor::*[self::div or self::li][1]")
+                    card_text = card.text.strip()
+                    if card_text and len(card_text) > len(text):
+                        context_text = card_text.replace("\n", " | ")
+                except Exception:
+                    pass
+
+                # Use the link itself as the dedupe key (stable and unique per showtime),
+                # not the display text, which can repeat across different movies.
+                dedupe_key = link
+                if dedupe_key not in sent_items:
+                    save_sent_item(dedupe_key)
+                    sent_items.add(dedupe_key)
+                    msg = f"🎬 <b>Vox Cinemas Update!</b>\n\n{context_text}\n\n🎟 <a href='{link}'>Book Here</a>"
+                    send_telegram_message(msg)
+                    count += 1
             except Exception:
                 continue
 
         print(f"Found and processed {count} new items in Vox.")
         if count == 0:
-            # Nothing new found — save a snapshot so you can check
-            # whether the page structure changed or Vox is blocking headless browsers.
             save_debug_snapshot(driver, "vox")
     except Exception as e:
         print(f"Vox Error: {e}")

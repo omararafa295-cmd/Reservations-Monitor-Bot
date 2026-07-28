@@ -2,8 +2,11 @@ name: Monitor Bot
 
 on:
   schedule:
-    - cron: '*/15 * * * *'  
+    - cron: '*/15 * * * *'  # كل 15 دقيقة - عدّل حسب حاجتك
   workflow_dispatch:  
+
+permissions:
+  contents: write  
 
 jobs:
   run-monitor:
@@ -44,5 +47,10 @@ jobs:
           git config --global user.name 'GitHub Action'
           git config --global user.email 'action@github.com'
           git add sent.txt
-          git diff --staged --quiet || git commit -m "Update sent items"
-          git push
+          if git diff --staged --quiet; then
+            echo "No new items to commit."
+          else
+            git commit -m "Update sent items"
+            git pull --rebase origin main
+            git push
+          fi
