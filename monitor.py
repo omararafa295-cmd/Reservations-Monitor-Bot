@@ -329,10 +329,6 @@ def check_vox_cinemas(driver, sent_items):
     print(f"Found and processed {total_new} new showtimes in Vox.")
 
 
-# ---------------------------------------------------------------------------
-# Tazkarti (left as before — send me a saved HTML of this page too if you
-# want the same level of accuracy here)
-# ---------------------------------------------------------------------------
 def check_tazkarti(driver, sent_items):
     print("Checking Tazkarti...")
     try:
