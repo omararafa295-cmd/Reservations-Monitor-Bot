@@ -5,10 +5,10 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 
-TELEGRAM_TOKEN = '7632916042:AAEYh_kUluMXb2oNQ-mpQPiZQJDU7FZ8x-I'
-CHAT_ID = '1238932334'
+TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN', '7632916042:AAEYh_kUluMXb2oNQ-mpQPiZQJDU7FZ8x-I')
+CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID', '1238932334')
 
-VOX_URL = 'https://egy.voxcinemas.com/showtimes?c=city-centre-almaza'
+VOX_BASE_URL = 'https://egy.voxcinemas.com/showtimes?c=city-centre-almaza'
 TAZKARTI_URL = 'https://www.tazkarti.com/#/matches'
 SENT_FILE = 'sent.txt'
 
@@ -50,11 +50,11 @@ def setup_browser():
 def check_vox_cinemas(driver, sent_items):
     print("Checking Vox Cinemas Almaza for all available days...")
     try:
-        driver.get(VOX_URL)
+        driver.get(VOX_BASE_URL)
         driver.implicitly_wait(6)
-        date_links = [VOX_URL] 
         
-        date_elements = driver.find_elements(By.XPATH, "//a[contains(@href, 'd=202')]")
+        date_links = [VOX_BASE_URL]
+        date_elements = driver.find_elements(By.XPATH, "//a[contains(@href, 'd=20')]")
         for el in date_elements:
             href = el.get_attribute("href")
             if href and href not in date_links:
@@ -66,19 +66,18 @@ def check_vox_cinemas(driver, sent_items):
         for day_url in date_links:
             driver.get(day_url)
             driver.implicitly_wait(4)
-           
-            day_match = re.search(r'd=(\d{4})(\d{2})(\d{2})', day_url)
-            day_str = f"{day_match.group(3)}-{day_match.group(2)}-{day_match.group(1)}" if day_match else "اليوم (Today)"
             
-            elements = driver.find_elements(By.TAG_NAME, "a")
-            for el in elements:
+            day_match = re.search(r'd=(\d{4})(\d{2})(\d{2})', day_url)
+            day_str = f"{day_match.group(3)}-{day_match.group(2)}-{day_match.group(1)}" if day_match else "Today"
+       
+            movies = driver.find_elements(By.TAG_NAME, "a")
+            for m in movies:
                 try:
-                    text = el.text.strip()
-                    link = el.get_attribute("href")
+                    text = m.text.strip()
+                    link = m.get_attribute("href")
                     
-                    if link and ("book" in link or "movies" in link) and len(text) > 3:
+                    if link and ("movies" in link or "showtimes" in link) and len(text) > 3:
                         flat_text = text.replace('\n', ' - ')
-                        # ربط الفيلم بالتاريخ في ذاكرة البوت عشان ميحصلش تكرار أو تجاهل لأيام جديدة
                         dedupe_key = f"vox:{flat_text}_{day_str}"
                         
                         if dedupe_key not in sent_items:
