@@ -1374,3 +1374,21 @@ tazkarti:Zamalek SC vs Alithad Alexandria -  Cairo Int. Stadium,  Cairo  - Fri 2
 tazkarti:Zamalek SC vs Alithad Alexandria -  Cairo Int. Stadium,  Cairo  - Fri 21 Aug 2026 - Time : 08 : 00 PM - Match Ended
 vox:2026-08-22:0047-269881
 vox:2026-08-22:0047-270073
+vox:2026-08-22:0047-270071
+vox:2026-08-22:0047-270079
+vox:2026-08-23:0047-270090
+vox:2026-08-23:0047-270082
+vox:2026-08-24:0047-270091
+vox:2026-08-24:0047-270084
+vox:2026-08-25:0047-270092
+vox:2026-08-25:0047-270085
+tazkarti:Matches - Team - All - Tala'ea El Gaish SC - Ghazl Elmahala FC - Al-Masry SC - Ceramica Cleopatra FC - Al Ahly FC - Arab Contractors Sporting Club - Pyramids FC - Smouha SC - Canal SC - El Sharkia Enppi - Stadium - All - Gehaz El Reyada Stadium - Ghazl El Mahala Stadium - Suez Stadium - Suez Canal Stadium - Cairo Int. Stadium - Group - All - ORA League 2026/2027 - Week One - Stage - All - Clear Search - Search - All Tournaments - ORA League 2026/2027 - Tala'ea El Gaish SC vs Arab Contractors Sporting Club -  Gehaz El Reyada Stadium,  Cairo  - Sat 22 Aug 2026 - Time : 05 : 00 PM - Book Ticket - Tournament ORA League 2026/2027 - Match No.4 - Group : Week One - Available - Ghazl Elmahala FC vs Pyramids FC -  Ghazl El Mahala Stadium,  Gharbiya  - Sat 22 Aug 2026 - Time : 08 : 00 PM - Book Ticket - Tournament ORA League 2026/2027 - Match No.6 - Group : Week One - Available - Al-Masry SC vs Smouha SC -  Suez Stadium,  Suez  - Sat 22 Aug 2026 - Time : 08 : 00 PM - Book Ticket - Tournament ORA League 2026/2027 - Match No.7 - Group : Week One - Available - Ceramica Cleopatra FC vs Canal SC -  Suez Canal Stadium,    - Sun 23 Aug 2026 - Time : 08 : 00 PM - Book Ticket - Tournament ORA League 2026/2027 - Match No.9 - Group : Week One - Available - Al Ahly FC vs El Sharkia Enppi -  Cairo Int. Stadium,  Cairo  - Sun 23 Aug 2026 - Time : 08 : 00 PM - Book Ticket - Tournament ORA League 2026/2027 - Match No.10 - Group : Week One - Available - View More
+tazkarti:Tala'ea El Gaish SC vs Arab Contractors Sporting Club -  Gehaz El Reyada Stadium,  Cairo  - Sat 22 Aug 2026 - Time : 05 : 00 PM - Book Ticket - Tournament ORA League 2026/2027 - Match No.4 - Group : Week One - Available - Ghazl Elmahala FC vs Pyramids FC -  Ghazl El Mahala Stadium,  Gharbiya  - Sat 22 Aug 2026 - Time : 08 : 00 PM - Book Ticket - Tournament ORA League 2026/2027 - Match No.6 - Group : Week One - Available - Al-Masry SC vs Smouha SC -  Suez Stadium,  Suez  - Sat 22 Aug 2026 - Time : 08 : 00 PM - Book Ticket - Tournament ORA League 2026/2027 - Match No.7 - Group : Week One - Available - Ceramica Cleopatra FC vs Canal SC -  Suez Canal Stadium,    - Sun 23 Aug 2026 - Time : 08 : 00 PM - Book Ticket - Tournament ORA League 2026/2027 - Match No.9 - Group : Week One - Available - Al Ahly FC vs El Sharkia Enppi -  Cairo Int. Stadium,  Cairo  - Sun 23 Aug 2026 - Time : 08 : 00 PM - Book Ticket - Tournament ORA League 2026/2027 - Match No.10 - Group : Week One - Available
+tazkarti:Ceramica Cleopatra FC vs Canal SC -  Suez Canal Stadium,    - Sun 23 Aug 2026 - Time : 08 : 00 PM - Book Ticket - Tournament ORA League 2026/2027 - Match No.9 - Group : Week One - Available
+tazkarti:Ceramica Cleopatra FC vs Canal SC -  Suez Canal Stadium,    - Sun 23 Aug 2026 - Time : 08 : 00 PM - Book Ticket
+tazkarti:Ceramica Cleopatra FC vs Canal SC
+tazkarti:vs Canal SC
+tazkarti:Al Ahly FC vs El Sharkia Enppi -  Cairo Int. Stadium,  Cairo  - Sun 23 Aug 2026 - Time : 08 : 00 PM - Book Ticket - Tournament ORA League 2026/2027 - Match No.10 - Group : Week One - Available
+tazkarti:Al Ahly FC vs El Sharkia Enppi -  Cairo Int. Stadium,  Cairo  - Sun 23 Aug 2026 - Time : 08 : 00 PM - Book Ticket
+tazkarti:Al Ahly FC vs El Sharkia Enppi
+tazkarti:vs El Sharkia Enppi
