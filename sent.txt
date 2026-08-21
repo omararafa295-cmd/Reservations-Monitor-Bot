@@ -1372,3 +1372,5 @@ tazkarti:Abou Qir Fertilizers vs NBE Club -  Alexandria Stadium,  Alex  - Fri 21
 tazkarti:Abou Qir Fertilizers vs NBE Club -  Alexandria Stadium,  Alex  - Fri 21 Aug 2026 - Time : 08 : 00 PM - Match Ended
 tazkarti:Zamalek SC vs Alithad Alexandria -  Cairo Int. Stadium,  Cairo  - Fri 21 Aug 2026 - Time : 08 : 00 PM - Match Ended - Tournament ORA League 2026/2027 - Match No.3 - Group : Week One - Match Ended
 tazkarti:Zamalek SC vs Alithad Alexandria -  Cairo Int. Stadium,  Cairo  - Fri 21 Aug 2026 - Time : 08 : 00 PM - Match Ended
+vox:2026-08-22:0047-269881
+vox:2026-08-22:0047-270073
