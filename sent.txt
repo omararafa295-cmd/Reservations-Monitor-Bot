@@ -1392,3 +1392,5 @@ tazkarti:Al Ahly FC vs El Sharkia Enppi -  Cairo Int. Stadium,  Cairo  - Sun 23 
 tazkarti:Al Ahly FC vs El Sharkia Enppi -  Cairo Int. Stadium,  Cairo  - Sun 23 Aug 2026 - Time : 08 : 00 PM - Book Ticket
 tazkarti:Al Ahly FC vs El Sharkia Enppi
 tazkarti:vs El Sharkia Enppi
+vox:2026-08-22:0047-270081
+vox:2026-08-22:0047-270080
