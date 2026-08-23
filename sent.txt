@@ -1456,3 +1456,4 @@ tazkarti:Ceramica Cleopatra FC vs Canal SC -  Suez Canal Stadium,    - Sun 23 Au
 tazkarti:Ceramica Cleopatra FC vs Canal SC -  Suez Canal Stadium,    - Sun 23 Aug 2026 - Time : 08 : 00 PM - Match Ended
 tazkarti:Al Ahly FC vs El Sharkia Enppi -  Cairo Int. Stadium,  Cairo  - Sun 23 Aug 2026 - Time : 08 : 00 PM - Match Ended - Tournament ORA League 2026/2027 - Match No.10 - Group : Week One - Match Ended
 tazkarti:Al Ahly FC vs El Sharkia Enppi -  Cairo Int. Stadium,  Cairo  - Sun 23 Aug 2026 - Time : 08 : 00 PM - Match Ended
+vox:2026-08-24:0047-270090
