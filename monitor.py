@@ -1,7 +1,9 @@
+import html
 import os
 import re
 import time
 from datetime import datetime
+from urllib.parse import urljoin
 from zoneinfo import ZoneInfo
 import requests
 from selenium import webdriver
@@ -78,7 +80,7 @@ def save_sent_item(item):
         f.write(f"{item}\n")
 
 
-def send_telegram_message(message):
+def send_telegram_message(message, button_text=None, button_url=None):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {
         'chat_id': CHAT_ID,
@@ -86,12 +88,22 @@ def send_telegram_message(message):
         'parse_mode': 'HTML',
         'disable_web_page_preview': True
     }
+    if button_text and button_url:
+        payload['reply_markup'] = {
+            'inline_keyboard': [[{
+                'text': button_text,
+                'url': button_url,
+            }]]
+        }
     try:
         resp = requests.post(url, json=payload, timeout=15)
         if not resp.ok:
             print(f"Telegram API error: {resp.status_code} {resp.text}")
+            return False
+        return True
     except Exception as e:
         print(f"Error sending Telegram message: {e}")
+        return False
 
 
 def new_browser():
@@ -306,43 +318,272 @@ def check_vox_cinemas(sent_items):
     print(f"Found and processed {total_new} new showtimes in Vox.")
 
 
+def clean_tazkarti_line(value):
+    return re.sub(r"\s+", " ", value or "").strip(" -")
+
+
+def normalize_match_identity(value):
+    value = (value or "").lower().translate(str.maketrans({
+        "أ": "ا",
+        "إ": "ا",
+        "آ": "ا",
+        "ى": "ي",
+    }))
+    value = re.sub(r"[\u064b-\u065f\u0670]", "", value)
+    return re.sub(r"[^a-z0-9\u0600-\u06ff]+", "", value)
+
+
+def is_al_ahly_match(title):
+    compact_title = normalize_match_identity(title)
+    return "alahly" in compact_title or "الاهلي" in compact_title
+
+
+def tazkarti_booking_is_open(text):
+    normalized = clean_tazkarti_line(text).lower()
+    closed_phrases = (
+        "booking closed",
+        "match ended",
+        "sold out",
+        "unavailable",
+        "not available",
+        "الحجز مغلق",
+        "انتهت المباراة",
+        "نفدت التذاكر",
+    )
+    if any(phrase in normalized for phrase in closed_phrases):
+        return False
+
+    open_phrases = (
+        "book ticket",
+        "احجز تذكرة",
+        "احجز الآن",
+        "احجز الان",
+    )
+    return any(phrase in normalized for phrase in open_phrases)
+
+
+def tazkarti_field(lines, pattern):
+    for line in lines:
+        match = re.match(pattern, line, flags=re.IGNORECASE)
+        if match:
+            return clean_tazkarti_line(match.group(1))
+    return ""
+
+
+def tazkarti_booking_url(card):
+    site_root = "https://www.tazkarti.com/"
+    controls = card.find_elements(By.CSS_SELECTOR, "a, button")
+
+    for control in controls:
+        label = clean_tazkarti_line(control.text).lower()
+        attributes = [
+            control.get_attribute("href"),
+            control.get_attribute("routerlink"),
+            control.get_attribute("ng-reflect-router-link"),
+        ]
+        searchable = " ".join([label] + [a or "" for a in attributes]).lower()
+        if not any(word in searchable for word in ("book", "ticket", "حجز", "match")):
+            continue
+
+        for raw_url in attributes:
+            raw_url = (raw_url or "").strip()
+            if not raw_url or raw_url.lower().startswith(("javascript:", "mailto:")):
+                continue
+            if raw_url.startswith("#"):
+                return f"{site_root}{raw_url}"
+            return urljoin(site_root, raw_url)
+
+    return TAZKARTI_URL
+
+
+def parse_tazkarti_card(card):
+    raw_text = (card.text or "").strip()
+    if not raw_text or not tazkarti_booking_is_open(raw_text):
+        return None
+
+    lines = [clean_tazkarti_line(line) for line in raw_text.splitlines()]
+    lines = [line for line in lines if line]
+
+    title = next(
+        (
+            line for line in lines
+            if re.search(r"\bvs\.?\b", line, flags=re.IGNORECASE) or " ضد " in line
+        ),
+        "",
+    )
+    if not title:
+        return None
+
+    title_index = lines.index(title)
+    stadium = next(
+        (
+            line for line in lines[title_index + 1:]
+            if any(word in line.lower() for word in ("stadium", "استاد", "ملعب"))
+        ),
+        "",
+    )
+    match_date = next(
+        (
+            line for line in lines
+            if re.search(
+                r"\b(?:mon|tue|wed|thu|fri|sat|sun)\b.*\b\d{4}\b",
+                line,
+                flags=re.IGNORECASE,
+            )
+        ),
+        "",
+    )
+    match_time = tazkarti_field(lines, r"^time\s*:\s*(.+)$")
+    match_time = re.sub(r"\s*:\s*", ":", match_time)
+    tournament = tazkarti_field(lines, r"^tournament\s*:?[ ]*(.+)$")
+    match_number = tazkarti_field(lines, r"^match\s*no\.?\s*:?[ ]*(.+)$")
+    group = tazkarti_field(lines, r"^group\s*:\s*(.+)$")
+
+    return {
+        "title": title,
+        "stadium": stadium,
+        "date": match_date,
+        "time": match_time,
+        "tournament": tournament,
+        "match_number": match_number,
+        "group": group,
+        "booking_url": tazkarti_booking_url(card),
+        "_source_length": len(raw_text),
+    }
+
+
+def tazkarti_dedupe_key(match):
+    if match["tournament"] and match["match_number"]:
+        identity = f"{match['tournament']}|{match['match_number']}"
+    else:
+        identity = "|".join([
+            match["title"],
+            match["date"],
+            match["time"],
+        ])
+    return f"tazkarti:al-ahly:{normalize_match_identity(identity)}"
+
+
+def extract_open_al_ahly_matches(driver):
+    cards = driver.find_elements(By.TAG_NAME, "mat-card")
+    if not cards:
+        cards = driver.find_elements(
+            By.CSS_SELECTOR,
+            "[class*='match-card'], [class*='match_card'], [class*='matchCard']",
+        )
+
+    matches_by_key = {}
+    for card in cards:
+        try:
+            match = parse_tazkarti_card(card)
+            if not match or not is_al_ahly_match(match["title"]):
+                continue
+
+            key = tazkarti_dedupe_key(match)
+            match["dedupe_key"] = key
+            previous = matches_by_key.get(key)
+
+            candidate_score = (
+                match["booking_url"] != TAZKARTI_URL,
+                -match["_source_length"],
+            )
+            previous_score = (
+                previous["booking_url"] != TAZKARTI_URL,
+                -previous["_source_length"],
+            ) if previous else None
+
+            if previous is None or candidate_score > previous_score:
+                matches_by_key[key] = match
+        except Exception as e:
+            print(f"Could not parse a Tazkarti card: {e}")
+
+    return list(matches_by_key.values())
+
+
+def expand_all_tazkarti_matches(driver, max_clicks=10):
+    for _ in range(max_clicks):
+        view_more = None
+        for control in driver.find_elements(By.CSS_SELECTOR, "button, a"):
+            label = clean_tazkarti_line(
+                control.text or control.get_attribute("aria-label") or ""
+            ).lower()
+            if ("view more" in label or "عرض المزيد" in label) and control.is_displayed():
+                view_more = control
+                break
+
+        if view_more is None or not view_more.is_enabled():
+            return
+
+        driver.execute_script(
+            "arguments[0].scrollIntoView({block: 'center'});",
+            view_more,
+        )
+        driver.execute_script("arguments[0].click();", view_more)
+        time.sleep(1.5)
+
+
+def format_tazkarti_message(match):
+    lines = [
+        "🚨 <b>حجز مباراة الأهلي متاح الآن!</b>",
+        "",
+        f"⚽ <b>{html.escape(match['title'])}</b>",
+    ]
+    if match["tournament"]:
+        lines.append(f"🏆 البطولة: {html.escape(match['tournament'])}")
+    if match["date"]:
+        lines.append(f"📅 التاريخ: {html.escape(match['date'])}")
+    if match["time"]:
+        lines.append(f"🕗 الساعة: {html.escape(match['time'])}")
+    if match["stadium"]:
+        lines.append(f"🏟 الملعب: {html.escape(match['stadium'])}")
+    if match["group"]:
+        lines.append(f"📌 الجولة: {html.escape(match['group'])}")
+
+    lines.extend(["", "🎟 اضغط على الزر بالأسفل للحجز من تذكرتي."])
+    return "\n".join(lines)
+
+
 def check_tazkarti(sent_items):
-    print("Checking Tazkarti...")
+    print("Checking Tazkarti for open Al Ahly bookings...")
     driver = new_browser()
     try:
         driver.get(TAZKARTI_URL)
         try:
-            WebDriverWait(driver, 15).until(
+            WebDriverWait(driver, 20).until(
                 EC.presence_of_element_located((By.TAG_NAME, "mat-card"))
             )
         except Exception:
-            print("Timed out waiting for Tazkarti 'mat-card' elements; falling back to div scan.")
+            print("Timed out waiting for Tazkarti match cards.")
+            save_debug_snapshot(driver, "tazkarti")
+            return
 
-        cards = driver.find_elements(By.TAG_NAME, "mat-card")
-        if not cards:
-            cards = driver.find_elements(By.TAG_NAME, "div")
-
+        expand_all_tazkarti_matches(driver)
+        matches = extract_open_al_ahly_matches(driver)
         count = 0
-        for card in cards:
-            try:
-                info = card.text.strip()
-                if info and len(info) > 10 and ("vs" in info.lower() or "استاد" in info):
-                    flat_info = info.replace('\n', ' - ')
-                    dedupe_key = f"tazkarti:{flat_info}"
-                    if dedupe_key not in sent_items:
-                        save_sent_item(dedupe_key)
-                        sent_items.add(dedupe_key)
-                        msg = f"⚽️ <b>Tazkarti Match Update!</b>\n\n{flat_info}\n\n🎟 <a href='{TAZKARTI_URL}'>Book Here</a>"
-                        send_telegram_message(msg)
-                        count += 1
-            except Exception:
+
+        for match in matches:
+            dedupe_key = match["dedupe_key"]
+            if dedupe_key in sent_items:
                 continue
 
-        print(f"Found and processed {count} new items in Tazkarti.")
-        if count == 0:
-            save_debug_snapshot(driver, "tazkarti")
+            message = format_tazkarti_message(match)
+            sent_ok = send_telegram_message(
+                message,
+                button_text="🎟 احجز من تذكرتي",
+                button_url=match["booking_url"],
+            )
+            if sent_ok:
+                save_sent_item(dedupe_key)
+                sent_items.add(dedupe_key)
+                count += 1
+
+        print(
+            f"Found {len(matches)} open Al Ahly match(es); "
+            f"sent {count} new alert(s)."
+        )
     except Exception as e:
         print(f"Tazkarti Error: {e}")
+        save_debug_snapshot(driver, "tazkarti")
     finally:
         driver.quit()
 
