@@ -1,38 +1,58 @@
-# 🎬 Vox Cinemas Almaza — Showtime Monitor Bot
+# 🎬⚽ Reservations Monitor Bot
 
-An automated bot that watches **Vox Cinemas, City Centre Almaza** for new showtimes across all currently open booking dates, and sends a real-time alert to Telegram the moment a new time slot becomes available for booking.
+An automated Telegram alert bot that monitors two reservation services in Egypt:
 
-Runs on a schedule via **GitHub Actions** — no server required.
+- **VOX Cinemas — City Centre Almaza:** detects newly available movie showtimes across every date currently open for booking.
+- **Tazkarti — Al Ahly FC:** detects when booking opens for an Al Ahly match against any opponent, in any tournament listed on Tazkarti — including domestic competitions and the CAF Champions League.
+
+The bot runs automatically through **GitHub Actions** every 15 minutes, so no dedicated server is required.
 
 ---
 
-## 🚀 Want to use this yourself?
+## 🔎 What It Monitors
 
-This bot doesn't message you directly — you run your own copy, connected to your own Telegram bot. That takes about 5 minutes:
-
-1. **Fork** this repository.
-2. Message [@BotFather](https://t.me/BotFather) on Telegram, run `/newbot`, and save the token it gives you.
-3. Add that token (and your chat ID — see [Setup](#️-setup) below) as **GitHub Secrets** in your fork.
-4. Enable **Read and write permissions** for the workflow (see [Setup](#️-setup)).
-5. Go to the **Actions** tab and run the workflow manually once to confirm it works — after that, it runs on its own schedule.
-
-Full step-by-step details are in the [Setup](#️-setup) section below.
+| Service | Monitoring scope | Alert condition |
+|---|---|---|
+| VOX Cinemas | City Centre Almaza movies, halls, dates and showtimes | A new bookable showtime appears |
+| Tazkarti | Al Ahly FC matches in any available tournament | The match displays `Book Ticket` and booking is open |
 
 ---
 
 ## ✨ Features
 
-- **Auto-discovers open dates** — reads the date tabs directly from the site, so it automatically covers every day currently open for booking (no hardcoded dates to maintain).
-- **Rich, structured alerts** — each message includes the movie title, age rating, language, duration, cinema hall (GOLD / IMAX / MAX / 4DX / Standard...), and a direct booking link per showtime.
-- **Smart deduplication** — every showtime is tracked individually, so you're only notified once per new slot, never spammed with repeats.
-- **Past-showtime filtering** — times that have already passed today are automatically ignored, since they can never become bookable again.
-- **Resilient scraping** — uses a fresh browser session per date to avoid known headless-Chrome networking issues, with automatic retries on slow loads.
+### 🎬 VOX Cinemas
+
+- Automatically discovers every date currently open for booking.
+- Detects new showtimes individually using their booking IDs.
+- Includes the movie title, age rating, language, duration and cinema hall.
+- Supports GOLD, IMAX, MAX, 4DX, Standard, Kids and VIP halls.
+- Provides a direct booking link for every showtime.
+- Ignores today's showtimes after their start time.
+
+### ⚽ Tazkarti
+
+- Monitors **Al Ahly FC only**, whether Al Ahly is the home or away team.
+- Works across every tournament displayed on Tazkarti; no competition is hardcoded.
+- Expands `View More` results automatically to inspect additional matches.
+- Sends an alert only when booking is actually open.
+- Includes the opponent, tournament, date, time, stadium and round/group.
+- Adds a clear Telegram booking button that opens Tazkarti.
+
+### 🔔 Reliability
+
+- Sends each movie showtime or match alert only once.
+- Stores notification history in `sent.txt` and commits it back to the repository.
+- Records an item only after Telegram confirms that the message was sent successfully.
+- Uses headless Chrome with retries for slow VOX pages.
+- Uploads HTML and screenshot debug snapshots when a monitored page fails to load correctly.
 
 ---
 
-## 🖼 Example Alert
+## 🖼 Alert Examples
 
-```
+### VOX Cinema Alert
+
+```text
 🎬 The Odyssey
 🏷 16+ | English | 175 min
 📅 Today
@@ -43,79 +63,148 @@ Full step-by-step details are in the [Setup](#️-setup) section below.
 ℹ️ Movie Info
 ```
 
+### Al Ahly Match Alert
+
+```text
+🚨 حجز مباراة الأهلي متاح الآن!
+
+⚽ Al Ahly FC vs Opponent FC
+🏆 البطولة: Tournament Name
+📅 التاريخ: Match Date
+🕗 الساعة: Match Time
+🏟 الملعب: Stadium Name
+📌 الجولة: Round / Group
+
+🎟 اضغط على الزر بالأسفل للحجز من تذكرتي.
+```
+
+The match notification includes a **🎟 احجز من تذكرتي** button.
+
 ---
 
 ## 🛠 Tech Stack
 
 | Component | Purpose |
 |---|---|
-| Python 3.11 | Core scripting |
+| Python 3.11 | Monitoring and data processing |
 | Selenium | Headless browser automation |
-| Telegram Bot API | Delivering alerts |
-| GitHub Actions | Scheduled, serverless execution |
+| Requests | Telegram Bot API communication |
+| Telegram Bot API | Delivering instant alerts |
+| GitHub Actions | Scheduled serverless execution |
 
 ---
 
 ## 📁 Project Structure
 
-```
+```text
 .
-├── monitor.py               # Main bot script
+├── monitor.py               # VOX and Tazkarti monitoring logic
 ├── requirements.txt         # Python dependencies
-├── sent.txt                 # Persisted record of already-notified showtimes
+├── sent.txt                 # Generated notification history
 └── .github/
     └── workflows/
         └── main.yml          # Scheduled GitHub Actions workflow
 ```
+
+`sent.txt` is created automatically after the first successful notification if it does not already exist.
 
 ---
 
 ## ⚙️ Setup
 
 ### 1. Create a Telegram Bot
-1. Message [@BotFather](https://t.me/BotFather) on Telegram and run `/newbot`.
-2. Save the token it gives you.
-3. Message your new bot once (e.g. `/start`) so it can message you back.
-4. Get your chat ID by visiting:
-   `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates`
 
-### 2. Configure Repository Secrets
-In your repo: **Settings → Secrets and variables → Actions → New repository secret**
+1. Message [@BotFather](https://t.me/BotFather) on Telegram.
+2. Run `/newbot` and save the generated bot token.
+3. Send any message, such as `/start`, to your new bot.
+4. Get your chat ID from:
 
-| Secret name | Value |
+   ```text
+   https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates
+   ```
+
+### 2. Configure GitHub Secrets
+
+Open your repository and go to:
+
+**Settings → Secrets and variables → Actions → New repository secret**
+
+Add these secrets:
+
+| Secret | Value |
 |---|---|
-| `TELEGRAM_TOKEN` | Your bot token from BotFather |
-| `TELEGRAM_CHAT_ID` | Your Telegram chat ID |
+| `TELEGRAM_TOKEN` | The bot token generated by BotFather |
+| `TELEGRAM_CHAT_ID` | The Telegram chat ID that will receive alerts |
 
-> ⚠️ Never commit tokens directly into the code. This project reads both values exclusively from environment variables / GitHub Secrets.
+> Never commit your Telegram token or chat ID directly to the repository.
 
-### 3. Enable Workflow Permissions
-In **Settings → Actions → General → Workflow permissions**, make sure **Read and write permissions** is selected — the bot commits `sent.txt` back to the repo after each run to persist what's already been sent.
+### 3. Enable Workflow Write Permission
 
-### 4. Run It
-The workflow runs automatically on the schedule defined in `.github/workflows/main.yml`. You can also trigger it manually from the **Actions** tab via **Run workflow**.
+Go to:
+
+**Settings → Actions → General → Workflow permissions**
+
+Select **Read and write permissions**. The workflow needs this permission to commit the updated `sent.txt` file after sending new alerts.
+
+### 4. Run the Bot
+
+Open **Actions → Monitor Bot → Run workflow** to test it manually.
+
+The workflow will then continue running automatically according to its schedule.
 
 ---
 
-## 🔁 Changing the Schedule
+## ⏱ Schedule
 
-Edit the `cron` expression in `.github/workflows/main.yml`:
+The default workflow checks both services every 15 minutes:
 
 ```yaml
 on:
   schedule:
-    - cron: '*/15 * * * *'   # every 15 minutes
-  workflow_dispatch:          # allows manual runs from the Actions tab
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
 ```
+
+You can change the cron expression in `.github/workflows/main.yml` if you want a different interval.
+
+---
+
+## 🔄 Reset Notification History
+
+To make the bot resend every currently bookable movie showtime and any currently open Al Ahly match:
+
+1. Delete `sent.txt` from the repository.
+2. Run the workflow manually.
+
+The bot will treat all current results as new and recreate `sent.txt` automatically.
 
 ---
 
 ## 🐛 Debugging
 
-If a run fails to find showtimes, it automatically saves a screenshot and the page's HTML as workflow artifacts (`debug-snapshots`) so you can inspect exactly what the bot saw. Download them from the run's summary page under **Artifacts**.
+When a page cannot be loaded or parsed correctly, the workflow uploads files such as:
+
+```text
+debug_vox_*.png
+debug_vox_*.html
+debug_tazkarti.png
+debug_tazkarti.html
+```
+
+Download them from the workflow run under **Artifacts → debug-snapshots**.
+
+A successful Tazkarti check with no open Al Ahly booking may display:
+
+```text
+Checking Tazkarti for open Al Ahly bookings...
+Found 0 open Al Ahly match(es); sent 0 new alert(s).
+Done.
+```
+
+This is normal and means no Al Ahly match is currently available for booking.
 
 ---
 
-## 📄 License
+## ⚠️ Disclaimer
 
-For personal use. Not affiliated with or endorsed by Vox Cinemas.
+This project is intended for personal monitoring and educational use. It is not affiliated with or endorsed by VOX Cinemas, Tazkarti, Al Ahly SC or any tournament organizer. Website layout changes may require selector updates.
