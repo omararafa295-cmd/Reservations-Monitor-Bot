@@ -17,6 +17,7 @@ CHAT_ID = os.environ['TELEGRAM_CHAT_ID']
 
 VOX_BASE_URL = 'https://egy.voxcinemas.com/showtimes?c=city-centre-almaza'
 TAZKARTI_URL = 'https://www.tazkarti.com/#/matches'
+TAZKARTI_MATCH_SELECTOR = 'div.content.matches div.match'
 SENT_FILE = 'sent.txt'
 
 EGYPT_TZ = ZoneInfo("Africa/Cairo")
@@ -370,6 +371,22 @@ def tazkarti_field(lines, pattern):
     return ""
 
 
+def tazkarti_element_text(container, selector):
+    elements = container.find_elements(By.CSS_SELECTOR, selector)
+    if not elements:
+        return ""
+    return clean_tazkarti_line(elements[0].text)
+
+
+def tazkarti_card_field(card, label):
+    wanted_label = normalize_match_identity(label)
+    for block in card.find_elements(By.CSS_SELECTOR, ".bottom .one"):
+        field_label = tazkarti_element_text(block, ".first")
+        if normalize_match_identity(field_label).startswith(wanted_label):
+            return tazkarti_element_text(block, ".second")
+    return ""
+
+
 def tazkarti_booking_url(card):
     site_root = "https://www.tazkarti.com/"
     controls = card.find_elements(By.CSS_SELECTOR, "a, button")
@@ -404,40 +421,75 @@ def parse_tazkarti_card(card):
     lines = [clean_tazkarti_line(line) for line in raw_text.splitlines()]
     lines = [line for line in lines if line]
 
-    title = next(
-        (
-            line for line in lines
-            if re.search(r"\bvs\.?\b", line, flags=re.IGNORECASE) or " ضد " in line
-        ),
-        "",
-    )
+    first_team = tazkarti_element_text(card, ".team-name.first")
+    second_team = tazkarti_element_text(card, ".team-name.second")
+    title = f"{first_team} vs {second_team}" if first_team and second_team else ""
+
+    if not title:
+        title = next(
+            (
+                line for line in lines
+                if (
+                    re.search(r"\bvs\.?\b", line, flags=re.IGNORECASE)
+                    and line.lower().rstrip(".") != "vs"
+                ) or " ضد " in line
+            ),
+            "",
+        )
+
+    if not title:
+        vs_index = next(
+            (
+                index for index, line in enumerate(lines)
+                if line.lower().rstrip(".") == "vs"
+            ),
+            -1,
+        )
+        if 0 < vs_index < len(lines) - 1:
+            title = f"{lines[vs_index - 1]} vs {lines[vs_index + 1]}"
+
     if not title:
         return None
 
-    title_index = lines.index(title)
-    stadium = next(
-        (
-            line for line in lines[title_index + 1:]
-            if any(word in line.lower() for word in ("stadium", "استاد", "ملعب"))
-        ),
-        "",
-    )
-    match_date = next(
-        (
-            line for line in lines
-            if re.search(
-                r"\b(?:mon|tue|wed|thu|fri|sat|sun)\b.*\b\d{4}\b",
-                line,
-                flags=re.IGNORECASE,
-            )
-        ),
-        "",
-    )
-    match_time = tazkarti_field(lines, r"^time\s*:\s*(.+)$")
+    stadium = tazkarti_element_text(card, ".one-block.stadium .info")
+    if not stadium:
+        stadium = next(
+            (
+                line for line in lines
+                if any(word in line.lower() for word in ("stadium", "استاد", "ملعب"))
+            ),
+            "",
+        )
+
+    match_date = tazkarti_element_text(card, ".one-block.when .info .first")
+    if not match_date:
+        match_date = next(
+            (
+                line for line in lines
+                if re.search(
+                    r"\b(?:mon|tue|wed|thu|fri|sat|sun)\b.*\b\d{4}\b",
+                    line,
+                    flags=re.IGNORECASE,
+                )
+            ),
+            "",
+        )
+
+    time_line = tazkarti_element_text(card, ".one-block.when .info .second")
+    match_time = tazkarti_field([time_line] if time_line else lines, r"^time\s*:\s*(.+)$")
     match_time = re.sub(r"\s*:\s*", ":", match_time)
-    tournament = tazkarti_field(lines, r"^tournament\s*:?[ ]*(.+)$")
-    match_number = tazkarti_field(lines, r"^match\s*no\.?\s*:?[ ]*(.+)$")
-    group = tazkarti_field(lines, r"^group\s*:\s*(.+)$")
+
+    tournament = tazkarti_card_field(card, "Tournament")
+    if not tournament:
+        tournament = tazkarti_field(lines, r"^tournament\s*:?[ ]*(.+)$")
+
+    match_number = tazkarti_card_field(card, "Match No")
+    if not match_number:
+        match_number = tazkarti_field(lines, r"^match\s*no\.?\s*:?[ ]*(.+)$")
+
+    group = tazkarti_card_field(card, "Group")
+    if not group:
+        group = tazkarti_field(lines, r"^group\s*:\s*(.+)$")
 
     return {
         "title": title,
@@ -465,7 +517,9 @@ def tazkarti_dedupe_key(match):
 
 
 def extract_open_al_ahly_matches(driver):
-    cards = driver.find_elements(By.TAG_NAME, "mat-card")
+    cards = driver.find_elements(By.CSS_SELECTOR, TAZKARTI_MATCH_SELECTOR)
+    if not cards:
+        cards = driver.find_elements(By.TAG_NAME, "mat-card")
     if not cards:
         cards = driver.find_elements(
             By.CSS_SELECTOR,
@@ -550,7 +604,9 @@ def check_tazkarti(sent_items):
         driver.get(TAZKARTI_URL)
         try:
             WebDriverWait(driver, 20).until(
-                EC.presence_of_element_located((By.TAG_NAME, "mat-card"))
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, TAZKARTI_MATCH_SELECTOR)
+                )
             )
         except Exception:
             print("Timed out waiting for Tazkarti match cards.")
